@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Crypto Tracker</title>
+  <title>Crypto Tracker (Live)</title>
 
   <style>
     body {
@@ -40,7 +40,7 @@
 
     #result {
       margin-top: 20px;
-      font-size: 22px;
+      font-size: 24px;
       font-weight: bold;
     }
 
@@ -56,50 +56,52 @@
 
 <body>
 
-<h2>🚀 Crypto Price Tracker</h2>
+<h2>🚀 Live Crypto Price Tracker</h2>
 
 <input type="text" id="coin" placeholder="BTC, ETH, SOL...">
-<button onclick="getPrice()">Check Price</button>
+<button onclick="startTracking()">Start Tracking</button>
 
-<p id="result"></p>
+<p id="result">Enter a coin to begin</p>
 
 <script>
+let socket;
 let lastPrice = null;
 
-// Map symbols → CoinGecko IDs
+// Symbol → Binance pair
 const coinMap = {
-  btc: "bitcoin",
-  eth: "ethereum",
-  sol: "solana",
-  bnb: "binancecoin",
-  ada: "cardano",
-  doge: "dogecoin"
+  btc: "btcusdt",
+  eth: "ethusdt",
+  sol: "solusdt",
+  bnb: "bnbusdt",
+  ada: "adausdt",
+  doge: "dogeusdt"
 };
 
-async function getPrice() {
+function startTracking() {
   const input = document.getElementById("coin").value.toLowerCase();
-
-  // Convert symbol to full name
-  const coin = coinMap[input] || input;
-
+  const symbol = coinMap[input];
   const result = document.getElementById("result");
-  result.innerText = "⏳ Fetching price...";
 
-  try {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd`;
+  if (!symbol) {
+    result.innerText = "❌ Unsupported coin (try BTC, ETH, SOL)";
+    return;
+  }
 
-    const res = await fetch(url);
-    const data = await res.json();
+  // Close previous connection
+  if (socket) socket.close();
 
-    if (!data[coin]) {
-      result.innerText = "❌ Coin not found";
-      return;
-    }
+  result.innerText = "⏳ Connecting to live market...";
 
-    const price = data[coin].usd;
-    const formattedPrice = price.toLocaleString();
+  socket = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@trade`);
 
-    // Check price change
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    const price = parseFloat(data.p);
+
+    // Format price
+    const formatted = price.toLocaleString();
+
+    // Price color logic
     let colorClass = "";
     if (lastPrice !== null) {
       if (price > lastPrice) colorClass = "green";
@@ -108,18 +110,18 @@ async function getPrice() {
 
     lastPrice = price;
 
-    result.innerHTML = `
-      ${coin.toUpperCase()} = $${formattedPrice}
-    `;
+    result.innerHTML = `${input.toUpperCase()} = $${formatted}`;
     result.className = colorClass;
+  };
 
-  } catch (error) {
-    result.innerText = "⚠️ Error fetching data";
-  }
+  socket.onerror = () => {
+    result.innerText = "⚠️ Error connecting to Binance";
+  };
+
+  socket.onclose = () => {
+    console.log("Connection closed");
+  };
 }
-
-// Auto refresh every 10 seconds
-setInterval(getPrice, 10000);
 </script>
 
 </body>
