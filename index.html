@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Persistent Crypto Dashboard</title>
+  <title>Simple Persistent Crypto Dashboard</title>
   <style>
     body {
       background: #0f172a;
@@ -35,41 +35,36 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let coins = []; // tracked coins
+let coins = [];
 let lastPrices = {};
 let charts = {};
 let coinList = [];
 
-// Load all coins from CoinGecko
 async function loadCoinList() {
   try {
     const res = await fetch("https://api.coingecko.com/api/v3/coins/list");
     coinList = await res.json();
   } catch(err) {
-    alert("Error loading coin list. Check your internet.");
+    alert("Error loading coin list.");
     console.log(err);
   }
 }
 
-// Find CoinGecko ID
 function findCoinId(input) {
   input = input.toLowerCase();
   const coin = coinList.find(c => c.id.toLowerCase() === input || c.symbol.toLowerCase() === input || c.name.toLowerCase() === input);
   return coin ? coin.id : null;
 }
 
-// Save to localStorage
 function saveCoins() {
   localStorage.setItem("trackedCoins", JSON.stringify(coins));
 }
 
-// Load coins from localStorage
 function loadCoins() {
   const saved = JSON.parse(localStorage.getItem("trackedCoins") || "[]");
   saved.forEach(c => addCoin(c));
 }
 
-// Add coin dynamically
 function addCoin(inputValue) {
   const input = inputValue || document.getElementById("coinInput").value.trim();
   const coinId = findCoinId(input);
@@ -102,7 +97,6 @@ function addCoin(inputValue) {
   fetchPrices();
 }
 
-// Remove coin dynamically
 function removeCoin(coinId) {
   coins = coins.filter(c => c !== coinId);
   delete lastPrices[coinId];
@@ -112,7 +106,6 @@ function removeCoin(coinId) {
   saveCoins();
 }
 
-// Fetch live prices
 async function fetchPrices() {
   if (coins.length === 0) return;
   try {
@@ -155,7 +148,7 @@ async function fetchPrices() {
   }
 }
 
-// Initial setup
+// Initialize
 loadCoinList().then(() => {
   loadCoins();
   setInterval(fetchPrices, 3000);
