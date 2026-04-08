@@ -31,6 +31,7 @@
       border-radius: 8px;
       color: white;
       font-weight: bold;
+      cursor: pointer;
     }
 
     button:hover {
@@ -39,24 +40,50 @@
 
     #result {
       margin-top: 20px;
-      font-size: 20px;
-      color: #facc15;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .green {
+      color: #22c55e;
+    }
+
+    .red {
+      color: #ef4444;
     }
   </style>
-
 </head>
+
 <body>
 
 <h2>🚀 Crypto Price Tracker</h2>
 
-<input type="text" id="coin" placeholder="bitcoin, ethereum...">
+<input type="text" id="coin" placeholder="BTC, ETH, SOL...">
 <button onclick="getPrice()">Check Price</button>
 
 <p id="result"></p>
 
 <script>
+let lastPrice = null;
+
+// Map symbols → CoinGecko IDs
+const coinMap = {
+  btc: "bitcoin",
+  eth: "ethereum",
+  sol: "solana",
+  bnb: "binancecoin",
+  ada: "cardano",
+  doge: "dogecoin"
+};
+
 async function getPrice() {
-  const coin = document.getElementById("coin").value.toLowerCase();
+  const input = document.getElementById("coin").value.toLowerCase();
+
+  // Convert symbol to full name
+  const coin = coinMap[input] || input;
+
+  const result = document.getElementById("result");
+  result.innerText = "⏳ Fetching price...";
 
   try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd`;
@@ -65,17 +92,34 @@ async function getPrice() {
     const data = await res.json();
 
     if (!data[coin]) {
-      document.getElementById("result").innerText = "❌ Coin not found";
+      result.innerText = "❌ Coin not found";
       return;
     }
 
-    document.getElementById("result").innerText =
-      coin.toUpperCase() + " = $" + data[coin].usd;
+    const price = data[coin].usd;
+    const formattedPrice = price.toLocaleString();
+
+    // Check price change
+    let colorClass = "";
+    if (lastPrice !== null) {
+      if (price > lastPrice) colorClass = "green";
+      else if (price < lastPrice) colorClass = "red";
+    }
+
+    lastPrice = price;
+
+    result.innerHTML = `
+      ${coin.toUpperCase()} = $${formattedPrice}
+    `;
+    result.className = colorClass;
 
   } catch (error) {
-    document.getElementById("result").innerText = "⚠️ Error fetching data";
+    result.innerText = "⚠️ Error fetching data";
   }
 }
+
+// Auto refresh every 10 seconds
+setInterval(getPrice, 10000);
 </script>
 
 </body>
