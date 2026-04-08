@@ -64,17 +64,17 @@
 <p id="result">Enter a coin to begin</p>
 
 <script>
-let socket;
+let interval;
 let lastPrice = null;
 
-// Symbol → Binance pair
+// Symbol → Binance format
 const coinMap = {
-  btc: "btcusdt",
-  eth: "ethusdt",
-  sol: "solusdt",
-  bnb: "bnbusdt",
-  ada: "adausdt",
-  doge: "dogeusdt"
+  btc: "BTCUSDT",
+  eth: "ETHUSDT",
+  sol: "SOLUSDT",
+  bnb: "BNBUSDT",
+  ada: "ADAUSDT",
+  doge: "DOGEUSDT"
 };
 
 function startTracking() {
@@ -87,40 +87,38 @@ function startTracking() {
     return;
   }
 
-  // Close previous connection
-  if (socket) socket.close();
+  // Stop previous tracking
+  if (interval) clearInterval(interval);
 
-  result.innerText = "⏳ Connecting to live market...";
+  result.innerText = "⏳ Fetching live price...";
 
-  socket = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@trade`);
+  async function fetchPrice() {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const data = await res.json();
 
-  socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    const price = parseFloat(data.p);
+      const price = parseFloat(data.price);
+      const formatted = price.toLocaleString();
 
-    // Format price
-    const formatted = price.toLocaleString();
+      // Color logic
+      let colorClass = "";
+      if (lastPrice !== null) {
+        if (price > lastPrice) colorClass = "green";
+        else if (price < lastPrice) colorClass = "red";
+      }
 
-    // Price color logic
-    let colorClass = "";
-    if (lastPrice !== null) {
-      if (price > lastPrice) colorClass = "green";
-      else if (price < lastPrice) colorClass = "red";
+      lastPrice = price;
+
+      result.innerHTML = `${input.toUpperCase()} = $${formatted}`;
+      result.className = colorClass;
+
+    } catch (err) {
+      result.innerText = "⚠️ Error fetching price";
     }
+  }
 
-    lastPrice = price;
-
-    result.innerHTML = `${input.toUpperCase()} = $${formatted}`;
-    result.className = colorClass;
-  };
-
-  socket.onerror = () => {
-    result.innerText = "⚠️ Error connecting to Binance";
-  };
-
-  socket.onclose = () => {
-    console.log("Connection closed");
-  };
+  fetchPrice(); // run immediately
+  interval = setInterval(fetchPrice, 2000); // update every 2 seconds
 }
 </script>
 
