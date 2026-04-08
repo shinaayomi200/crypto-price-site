@@ -1,7 +1,8 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Crypto Tracker (Live)</title>
+  <title>Crypto Tracker</title>
 
   <style>
     body {
@@ -34,73 +35,63 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background: #16a34a;
-    }
-
     #result {
       margin-top: 20px;
       font-size: 24px;
       font-weight: bold;
     }
 
-    .green {
-      color: #22c55e;
-    }
-
-    .red {
-      color: #ef4444;
-    }
+    .green { color: #22c55e; }
+    .red { color: #ef4444; }
   </style>
 </head>
 
 <body>
 
-<h2>🚀 Live Crypto Price Tracker</h2>
+<h2>🚀 Crypto Price Tracker</h2>
 
 <input type="text" id="coin" placeholder="BTC, ETH, SOL...">
-<button onclick="startTracking()">Start Tracking</button>
+<button onclick="startTracking()">Start</button>
 
-<p id="result">Enter a coin to begin</p>
+<p id="result">Enter a coin</p>
 
 <script>
 let interval;
 let lastPrice = null;
 
-// Symbol → Binance format
 const coinMap = {
-  btc: "BTCUSDT",
-  eth: "ETHUSDT",
-  sol: "SOLUSDT",
-  bnb: "BNBUSDT",
-  ada: "ADAUSDT",
-  doge: "DOGEUSDT"
+  btc: "bitcoin",
+  eth: "ethereum",
+  sol: "solana",
+  bnb: "binancecoin",
+  ada: "cardano",
+  doge: "dogecoin"
 };
 
 function startTracking() {
   const input = document.getElementById("coin").value.toLowerCase();
-  const symbol = coinMap[input];
+  const coin = coinMap[input];
+
   const result = document.getElementById("result");
 
-  if (!symbol) {
-    result.innerText = "❌ Unsupported coin (try BTC, ETH, SOL)";
+  if (!coin) {
+    result.innerText = "❌ Unsupported coin";
     return;
   }
 
-  // Stop previous tracking
   if (interval) clearInterval(interval);
-
-  result.innerText = "⏳ Fetching live price...";
 
   async function fetchPrice() {
     try {
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd`
+      );
+
       const data = await res.json();
 
-      const price = parseFloat(data.price);
+      const price = data[coin].usd;
       const formatted = price.toLocaleString();
 
-      // Color logic
       let colorClass = "";
       if (lastPrice !== null) {
         if (price > lastPrice) colorClass = "green";
@@ -113,12 +104,12 @@ function startTracking() {
       result.className = colorClass;
 
     } catch (err) {
-      result.innerText = "⚠️ Error fetching price";
+      result.innerText = "⚠️ Network error";
     }
   }
 
-  fetchPrice(); // run immediately
-  interval = setInterval(fetchPrice, 2000); // update every 2 seconds
+  fetchPrice();
+  interval = setInterval(fetchPrice, 3000); // every 3 seconds
 }
 </script>
 
