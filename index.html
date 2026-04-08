@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vibe Crypto Tracker</title>
+</head>
+<body>
+
+<h2>Crypto Price Checker</h2>
+
+<input type="text" id="coin" placeholder="Enter coin (e.g. bitcoin)">
+<button onclick="getPrice()">Check Price</button>
+
+<p id="result"></p>
+
+<script>
+async function getPrice() {
+  const coin = document.getElementById("coin").value;
+
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  document.getElementById("result").innerText =
+    coin + " price: $" + data[coin].usd;
+}
+</script>
+
+</body>
+</html>
