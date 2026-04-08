@@ -1,117 +1,205 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Crypto Tracker</title>
-
+  <title>Dynamic Crypto Dashboard</title>
   <style>
     body {
       background: #0f172a;
       color: white;
       font-family: Arial;
       text-align: center;
-      margin-top: 100px;
+      padding: 30px;
     }
 
     h2 {
       color: #38bdf8;
+      margin-bottom: 20px;
+    }
+
+    input, button {
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
     }
 
     input {
-      padding: 12px;
       width: 200px;
-      border-radius: 8px;
-      border: none;
       margin-right: 10px;
     }
 
     button {
-      padding: 12px 20px;
       background: #22c55e;
-      border: none;
-      border-radius: 8px;
       color: white;
       font-weight: bold;
       cursor: pointer;
     }
 
-    #result {
-      margin-top: 20px;
-      font-size: 24px;
+    button:hover {
+      background: #16a34a;
+    }
+
+    .coin-container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .coin-card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+      width: 180px;
       font-weight: bold;
+      font-size: 16px;
+      transition: transform 0.2s;
+      text-align: center;
+      position: relative;
+    }
+
+    .coin-card:hover {
+      transform: scale(1.05);
     }
 
     .green { color: #22c55e; }
     .red { color: #ef4444; }
+
+    .remove-btn {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    canvas { margin-top: 10px; }
   </style>
 </head>
-
 <body>
 
-<h2>🚀 Crypto Price Tracker</h2>
+<h2>🚀 Dynamic Crypto Dashboard</h2>
 
-<input type="text" id="coin" placeholder="BTC, ETH, SOL...">
-<button onclick="startTracking()">Start</button>
+<input type="text" id="coinInput" placeholder="BTC or bitcoin">
+<button onclick="addCoin()">Add Coin</button>
 
-<p id="result">Enter a coin</p>
+<div class="coin-container" id="dashboard"></div>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let interval;
-let lastPrice = null;
+let coins = [];
+let lastPrices = {};
+let charts = {};
 
 const coinMap = {
   btc: "bitcoin",
+  bitcoin: "bitcoin",
   eth: "ethereum",
+  ethereum: "ethereum",
   sol: "solana",
+  solana: "solana",
+  doge: "dogecoin",
+  dogecoin: "dogecoin",
   bnb: "binancecoin",
+  binancecoin: "binancecoin",
   ada: "cardano",
-  doge: "dogecoin"
+  cardano: "cardano"
 };
 
-function startTracking() {
-  const input = document.getElementById("coin").value.toLowerCase();
-  const coin = coinMap[input];
-
-  const result = document.getElementById("result");
-
-  if (!coin) {
-    result.innerText = "❌ Unsupported coin";
+function addCoin() {
+  const input = document.getElementById("coinInput").value.toLowerCase();
+  const coinId = coinMap[input];
+  if (!coinId) {
+    alert("Unsupported coin!");
     return;
   }
 
-  if (interval) clearInterval(interval);
+  if (!coins.includes(coinId)) coins.push(coinId);
 
-  async function fetchPrice() {
-    try {
-      const res = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd`
-      );
+  if (!document.getElementById(coinId)) {
+    const dashboard = document.getElementById("dashboard");
+    const card = document.createElement("div");
+    card.className = "coin-card";
+    card.id = coinId;
+    card.innerHTML = `
+      <button class="remove-btn" onclick="removeCoin('${coinId}')">×</button>
+      ${input.toUpperCase()}<br>Loading...<br>
+      <span id="${coinId}-change"></span>
+      <canvas id="${coinId}-chart" width="150" height="50"></canvas>
+    `;
+    dashboard.appendChild(card);
 
-      const data = await res.json();
-
-      const price = data[coin].usd;
-      const formatted = price.toLocaleString();
-
-      let colorClass = "";
-      if (lastPrice !== null) {
-        if (price > lastPrice) colorClass = "green";
-        else if (price < lastPrice) colorClass = "red";
-      }
-
-      lastPrice = price;
-
-      result.innerHTML = `${input.toUpperCase()} = $${formatted}`;
-      result.className = colorClass;
-
-    } catch (err) {
-      result.innerText = "⚠️ Network error";
-    }
+    const ctx = document.getElementById(`${coinId}-chart`).getContext('2d');
+    charts[coinId] = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ data: [], borderColor: '#38bdf8', borderWidth: 2, tension: 0.4, pointRadius: 0 }] },
+      options: { responsive: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+    });
   }
 
-  fetchPrice();
-  interval = setInterval(fetchPrice, 3000); // every 3 seconds
+  document.getElementById("coinInput").value = "";
+  fetchPrices();
 }
-</script>
 
+function removeCoin(coinId) {
+  coins = coins.filter(c => c !== coinId);
+  delete lastPrices[coinId];
+  delete charts[coinId];
+  const card = document.getElementById(coinId);
+  if (card) card.remove();
+}
+
+async function fetchPrices() {
+  if (coins.length === 0) return;
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coins.join(',')}&vs_currencies=usd&include_24hr_change=true`);
+    const data = await res.json();
+
+    coins.forEach(coinId => {
+      const price = data[coinId].usd;
+      const change = data[coinId].usd_24h_change;
+      const formatted = price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const changeFormatted = change.toFixed(2) + "%";
+
+      let colorClass = "";
+      if (lastPrices[coinId] !== undefined) {
+        colorClass = (price > lastPrices[coinId]) ? "green" : (price < lastPrices[coinId]) ? "red" : "";
+      }
+      lastPrices[coinId] = price;
+
+      const card = document.getElementById(coinId);
+      card.className = `coin-card ${colorClass}`;
+      card.innerHTML = `
+        <button class="remove-btn" onclick="removeCoin('${coinId}')">×</button>
+        ${coinId.toUpperCase()}<br>$${formatted}<br>
+        <span id="${coinId}-change" class="${change >= 0 ? 'green' : 'red'}">${changeFormatted}</span>
+        <canvas id="${coinId}-chart" width="150" height="50"></canvas>
+      `;
+
+      const chart = charts[coinId];
+      if (chart.data.labels.length >= 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+      chart.data.labels.push("");
+      chart.data.datasets[0].data.push(price);
+      chart.update();
+    });
+
+  } catch (err) {
+    console.log("Error fetching prices:", err);
+  }
+}
+
+setInterval(fetchPrices, 3000);
+</script>
 </body>
 </html>
